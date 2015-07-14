@@ -1,6 +1,22 @@
-from requests import Request, Session
-from urllib import urlencode
-from .exceptions import (APICallError, UnknownAPICall)
+"""
+Palo Alto Networks Common API Kludge Eliminator
+
+:copyright: (c) 2015 Lance Wheelock
+:license: Apache 2.0, see LICENSE for more details.
+
+"""
+__title__ = 'pan'
+__version__ = '0.0.1'
+__author__ = 'Lance Wheelock'
+__license__ = 'Apache 2.0'
+__copyright__ = 'Copyright 2015 Lance Wheelock'
+
+from .exceptions import (APICallError, UnknownAPICall, InitError)
+
+try:
+    from requests import Request, Session
+except ImportError:
+    raise InitError('Missing dependencies. Re-run setup')
 
 class api(object):
 
