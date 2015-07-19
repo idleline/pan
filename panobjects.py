@@ -4,26 +4,6 @@ import os, sys, argparse, getpass
 import pan, re
 from BeautifulSoup import BeautifulSoup
 
-version = None
-
-try:
-    import pkg_resources
-    #version = pkg_resources.require('pan')[0].version
-except ImportError:
-    pass
-
-def keygen(device, user, passwd):
-    k = pan.api(device, 'keygen', user=user, password=passwd)
-    soup = BeautifulSoup(k.send(), features="xml")
-
-    key = soup.find('key')
-
-    if key:
-        return key.text
-    else:
-        print "Unable to get key. Check username & password"
-        sys.exit()
-
 def get_object_ip(entry):
     ''' Return object value attribute for IP '''
     ipaddr = ""
@@ -51,10 +31,8 @@ def parse(soup, search_query):
     if len(results) > 0:
         return results
     else:
-        xmlfile = open('pano-objects.xml')
-        data = soup.prettify()
-        xmlfile.write(data)
-        mldfile.close()
+        with open('pano-objects.xml') as xmlfile:
+            xmlfile.write(soup.prettify())
 
         print "Output saved to pano-objects.xml"
         sys.exit()
@@ -63,7 +41,7 @@ def parse(soup, search_query):
 def send_query(device, ob_type, search_query, key):
     xpath = '/config/shared/' + str(ob_type)
     s = pan.api(device, 'config', xpath=xpath, key=key, action='get')
-    soup = BeautifulSoup(s.send(), features="xml")
+    soup = BeautifulSoup(s.send())
 
     return parse(soup, search_query)
 
@@ -90,24 +68,18 @@ def printObjects(data):
     except TypeError:
         print "Invalid tuple"
 
-def main(argv, version):
-    user = getpass.getuser()
-    parser = argparse.ArgumentParser('Description: Retrieve objects from Panorama')
+def main(argv):
+    type_choices = ['address', 'address-group', 'service', 'service-group', 'application-group']
 
-    parser.add_argument('--version', action='version', version='%(prog)s {0}'.format(version))
-    parser.add_argument('-t', '--type', action='store', help='Which object type to retrieve',
-                        choices=['address','address-group', 'service', 'service-group',
-                                 'application-group'])
-    parser.add_argument('-u', '--user', action='store', help='User (default is current user)')
-    parser.add_argument('device', action='store', help='IP or Hostname of Panorama')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-t', dest='type', action='store', help='Which object type to retrieve. Allowe Choices are '+', '.join(type_choices), choices=type_choices, metavar=None)
+    parser.add_argument('-u', dest='user', action='store', help='User (default is current user)', metavar=None)
+    parser.add_argument('-d', dest='device', action='store', help='IP or Hostname of Panorama')
 
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-q', '--query', action='store', help='Enter search term for objects')
-    group.add_argument('-s', '--set', action='store', help='Filename of the objects to create')
-
+    group.add_argument('-q', dest='query', action='store', help='Enter search term for objects', metavar=None)
+    group.add_argument('-s', dest='set', type=argparse.FileType('rt'), action='store', help='Filename of the objects to create', metavar=None)
     args = parser.parse_args()
-
-    passwd = getpass.getpass()
 
     try:
         if args.user != None:
@@ -116,7 +88,7 @@ def main(argv, version):
         print 'exception: ', e.message
         pass
 
-    key = keygen(args.device, user, passwd)
+    key = pan.keygen(args)
 
     if args.query != None:
         s = send_query(args.device, args.type, args.query, key)
@@ -128,5 +100,5 @@ def main(argv, version):
         set_object(args.device, args.type, args.set, key)
 
 if __name__ == "__main__":
-    main(sys.argv[1:], version)
+    main(sys.argv[1:])
 

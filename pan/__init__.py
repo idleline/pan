@@ -11,7 +11,9 @@ __author__ = 'Lance Wheelock'
 __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright 2015 Lance Wheelock'
 
-from .exceptions import (APICallError, UnknownAPICall, InitError)
+from .exceptions import (APICallError, UnknownAPICall, InitError, IOError)
+from BeautifulSoup import BeautifulSoup
+import getpass
 
 try:
     from requests import Request, Session
@@ -99,3 +101,19 @@ class api(object):
         r = s.send(prepped, verify=False)
 
         return r.text
+
+def keygen(args):
+    passwd = getpass.getpass()
+    if args.user:
+        user = args.user
+    else:
+        user = getpass.getuser()
+
+    k = api(args.device, 'keygen', user=user, password=passwd)
+    soup = BeautifulSoup(k.send())
+    key = soup.key.text
+
+    if key:
+        return key.text
+    else:
+        raise APICallError("Unable to get key. Check username & password")

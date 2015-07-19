@@ -13,3 +13,6 @@ class InitError(APICallError):
 
 class ObjectTypeError(APICallError):
     """Incorrect Object Type"""
+
+class IOError(APICallError):
+    """Incorrect Object Type"""
