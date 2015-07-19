@@ -2,7 +2,11 @@
 
 import os, sys, argparse, getpass
 import pan, re
-from BeautifulSoup import BeautifulSoup
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    from BeautifulSoup import BeautifulSoup
 
 def get_object_ip(entry):
     ''' Return object value attribute for IP '''
@@ -14,11 +18,11 @@ def get_object_ip(entry):
 
     return ipaddr
 
-def parse(soup, search_query):
+def parse(soup, search_query, xmlresponse):
     results = []
+    entries = soup.findAll('entry')
 
-    if search_query:
-        entries = soup.findAll('entry')
+    if search_query is not None:
         for entry in entries:
             ipaddr = get_object_ip(entry)
             ob_entry = entry['name']
@@ -27,23 +31,26 @@ def parse(soup, search_query):
                     results.append((ob_entry.encode('ascii', 'ignore'), ipaddr.text.encode('ascii', 'ignore')))
                 except AttributeError:
                     print entry
+        if results:
+            return results
+        else:
+            print "No objects matched your query '{0}'".format(search_query)
 
-    if len(results) > 0:
-        return results
     else:
-        with open('pano-objects.xml') as xmlfile:
-            xmlfile.write(soup.prettify())
-
+        with open('pano-objects.xml', 'w+') as xmlfile:
+            print xmlresponse
+            xmlfile.write(xmlresponse.encode('utf-8').strip())
         print "Output saved to pano-objects.xml"
-        sys.exit()
 
+    return None
 
 def send_query(device, ob_type, search_query, key):
     xpath = '/config/shared/' + str(ob_type)
     s = pan.api(device, 'config', xpath=xpath, key=key, action='get')
-    soup = BeautifulSoup(s.send())
+    xmlresponse = s.send()
+    soup = BeautifulSoup(xmlresponse, "lxml")
 
-    return parse(soup, search_query)
+    return parse(soup, search_query, xmlresponse)
 
 def set_object(device, ob_type, ob_file, key):
     obj = open(ob_file, 'r')
@@ -62,11 +69,12 @@ def set_object(device, ob_type, ob_file, key):
 
         s.send()
 
-def printObjects(data):
-    try:
-        print "{0} {1}".format(data[0],data[1])
-    except TypeError:
-        print "Invalid tuple"
+def printObjects(items):
+    for data in items:
+        try:
+            print "{0} {1}".format(data[0],data[1])
+        except TypeError:
+            print "Invalid tuple"
 
 def main(argv):
     type_choices = ['address', 'address-group', 'service', 'service-group', 'application-group']
@@ -77,6 +85,7 @@ def main(argv):
     parser.add_argument('-d', dest='device', action='store', help='IP or Hostname of Panorama')
 
     group = parser.add_mutually_exclusive_group()
+    group.add_argument('-a', dest='all', action='store_true', help='Return all objects in Panorama')
     group.add_argument('-q', dest='query', action='store', help='Enter search term for objects', metavar=None)
     group.add_argument('-s', dest='set', type=argparse.FileType('rt'), action='store', help='Filename of the objects to create', metavar=None)
     args = parser.parse_args()
@@ -90,11 +99,10 @@ def main(argv):
 
     key = pan.keygen(args)
 
-    if args.query != None:
+    if args.query or args.all:
         s = send_query(args.device, args.type, args.query, key)
-
-        for item in s:
-            printObjects(item)
+        if s:
+            printObjects(s)
 
     if args.set != None:
         set_object(args.device, args.type, args.set, key)

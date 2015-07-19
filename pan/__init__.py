@@ -12,13 +12,17 @@ __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright 2015 Lance Wheelock'
 
 from .exceptions import (APICallError, UnknownAPICall, InitError, IOError)
-from BeautifulSoup import BeautifulSoup
 import getpass
 
 try:
     from requests import Request, Session
 except ImportError:
     raise InitError('Missing dependencies. Re-run setup')
+
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    from BeautifulSoup import BeautifulSoup
 
 class api(object):
 
@@ -110,10 +114,11 @@ def keygen(args):
         user = getpass.getuser()
 
     k = api(args.device, 'keygen', user=user, password=passwd)
-    soup = BeautifulSoup(k.send())
-    key = soup.key.text
+    soup = BeautifulSoup(k.send(), "lxml")
 
-    if key:
-        return key.text
-    else:
-        raise APICallError("Unable to get key. Check username & password")
+    try:
+        key = soup.key.text
+        return key
+    except AttributeError:
+        response = soup.msg.text.encode('ascii', 'ignore')
+        raise APICallError(response)
