@@ -16,7 +16,7 @@ setup(
     license='Apache 2.0',
     packages=['pan'],
     install_requires=[
-        'BeautifulSoup',
+        'beautifulsoup4',
         'requests',
     ],
 )
