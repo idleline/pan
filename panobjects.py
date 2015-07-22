@@ -8,6 +8,15 @@ try:
 except ImportError:
     from BeautifulSoup import BeautifulSoup
 
+class entryExit(object):
+    def __init__(self, f):
+        self.f = f
+
+    def __call__(self, *args, **kwargs):
+        print "Entering", self.f.__name__, args, kwargs
+        self.f(*args, **kwargs)
+        print "Exited", self.f.__name__
+
 def get_object_ip(entry):
     ''' Return object value attribute for IP '''
     ipaddr = ""
@@ -30,7 +39,7 @@ def parse(soup, search_query, xmlresponse):
                 try:
                     results.append((ob_entry.encode('ascii', 'ignore'), ipaddr.text.encode('ascii', 'ignore')))
                 except AttributeError:
-                    print entry
+                    print 'Fail', entry
         if results:
             return results
         else:
@@ -44,6 +53,7 @@ def parse(soup, search_query, xmlresponse):
 
     return None
 
+@entryExit
 def send_query(device, ob_type, search_query, key):
     xpath = '/config/shared/' + str(ob_type)
     s = pan.api(device, 'config', xpath=xpath, key=key, action='get')
@@ -52,6 +62,7 @@ def send_query(device, ob_type, search_query, key):
 
     return parse(soup, search_query, xmlresponse)
 
+@entryExit
 def set_object(device, ob_type, ob_file, key):
     obj = open(ob_file, 'r')
     obj_list = obj.readlines()
@@ -69,6 +80,7 @@ def set_object(device, ob_type, ob_file, key):
 
         s.send()
 
+@entryExit
 def printObjects(items):
     for data in items:
         try:
@@ -76,6 +88,7 @@ def printObjects(items):
         except TypeError:
             print "Invalid tuple"
 
+@entryExit
 def main(argv):
     type_choices = ['address', 'address-group', 'service', 'service-group', 'application-group']
 
